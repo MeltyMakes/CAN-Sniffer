@@ -1,0 +1,25 @@
+    /* Validate driver. */
+    if (mcp2515Driver == nullptr) {
+      return false;
+    }
+
+    /*!
+ * @brief Default Constructor.
+ */
+Mcp2515Driver::Mcp2515Driver() {
+    MCP2515::ERROR driverRet = MCP2515::ERROR_FAIL;
+
+    /* Create driver object. */
+    mcp2515Driver = new MCP2515(MCP2515_CS);
+
+    /* Send a reset instruction to the driver. */
+    driverRet = mcp2515Driver->reset();
+    if (driverRet != MCP2515::ERROR_OK) {
+      Serial.print("Error: ");
+      Serial.println(driverRet);
+    }
+
+    // /* Set default driver parameters. */
+    // mcp2515Driver->setBitrate(MCP2515_BITRATE); /* Set bitrate. */
+    // mcp2515Driver->setListenOnlyMode();         /* Only allow CAN module to listen to OBD2 bus for safety reasons. */
+}

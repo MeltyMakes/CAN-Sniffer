@@ -1,0 +1,120 @@
+
+
+#include <mcp_can.h>
+#include <SPI.h>
+
+long unsigned int rxId;
+unsigned char len = 0;
+unsigned char rxBuf[8];
+char msgString[128];                        // Array to store serial string
+
+int rpm = 0;
+int rpm2 = 0;
+int speed = 0;
+char gear = 'O';
+
+#define CAN0_INT 2                              // Set INT to pin 2
+MCP_CAN CAN0(10);                               // Set CS to pin 10
+
+#define CAN_MSG_ENGINE_DATA 0x158
+#define CAN_MSG_POWERTRAIN_DATA 0x17C
+#define CAN_SIG_RPM_OFFSET 16         //bits
+#define CAN_SIG_RPM_LEN 16         //bits
+
+#define CAN_MSG_CAR_SPEED 0x309
+#define CAN_SIG_CAR_SPEED_OFFSET 0         //bits
+#define CAN_SIG_CAR_SPEED_LEN 16         //bits
+
+#define CAN_MSG_GEARBOX 0x191
+
+#define CAN_MSG_SCM_FEEDBACK 0x326 // has r/l blinker
+
+
+void setup()
+{
+  Serial.begin(115200);
+  
+  // Initialize MCP2515 running at 8MHz with a baudrate of 500kb/s and the masks and standard ids only.
+  if(CAN0.begin(MCP_STDEXT, CAN_500KBPS, MCP_8MHZ) == CAN_OK)
+    Serial.println("MCP2515 Initialized Successfully!");
+  else
+    Serial.println("Error Initializing MCP2515...");
+    while(true);
+  
+  CAN0.setMode(MCP_LISTENONLY);                     // Set operation mode to listen only as to not disturb operation.
+
+  pinMode(CAN0_INT, INPUT);                            // Configuring pin for /INT input
+   
+  Serial.println("MCP2515 CAN READ TEST...");
+}
+
+void loop()
+{
+
+  if(!digitalRead(CAN0_INT))                         // If CAN0_INT pin is low, read receive buffer
+  {
+    CAN0.readMsgBuf(&rxId, &len, rxBuf);      // Read data: len = data length, buf = data byte(s)
+    
+    switch (rxId)
+    {
+    case CAN_MSG_ENGINE_DATA:
+      speed = (rxBuf[0] << 8) + rxBuf[1];   // XMISSION_SPEED
+      rpm = (rxBuf[2] << 8) + rxBuf[3];     // ENGINE_RPM
+      
+      break;
+
+    case CAN_MSG_POWERTRAIN_DATA:
+      rpm2 = (rxBuf[2] << 8) + rxBuf[3];    // ENGINE_RPM
+      
+      break;
+
+    case CAN_MSG_GEARBOX:
+      gear = rxBuf[0];
+      gear = gear & 0b00111111;             // GEAR_SHIFTER
+      switch (gear)
+      {
+      case 0x20:
+        gear = 'L';                         // Low Gear
+        break;
+      
+      case 0x10:
+        gear = 'S';                         // Sport
+        break;
+
+      case 0x8:
+        gear = 'D';                         // Drive
+        break;
+
+      case 0x4:
+        gear = 'N';                         // Neutral
+        break;
+
+      case 0x2:
+        gear = 'R';                         // Reverse
+        break;
+
+      case 0x1:
+        gear = 'P';                         // Park
+        break;
+      
+      default:
+        break;
+      }
+
+      break;
+    
+    default:
+      break;
+    }
+
+
+    sprintf(msgString, "Gear: %c,\t RPM2: %d,\t Speed %d,\t %d,\t %d,\t %d", gear, rpm2, speed);
+
+    Serial.print(msgString);
+    Serial.println();
+  }
+}
+
+/*********************************************************************************************************
+  END FILE
+*********************************************************************************************************/
