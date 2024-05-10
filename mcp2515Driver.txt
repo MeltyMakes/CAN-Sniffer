@@ -113,16 +113,24 @@ Mcp2515Driver::Mcp2515Driver(CarData *data) {
     this->data = data;
 
     /* Create canNode object. */
-    if (canNode != NULL) {
+    if (canNode != nullptr) {
         Serial.print("Error: canNode already exists!");
-        goto err;
+        
+        Serial.println((int)canNode);
+
+        // goto err;
+        delete canNode;
+        canNode = nullptr;
     }
+    Serial.println("Ok");
     canNode = new MCP2515();
 
     /* Initialize MCP2515 with parameters. */
     canNode->setClockFrequency(MCP2515_CLOCK_HZ);
     canNode->setPins(MCP2515_CS, MCP2515_INT);
     //todo possibly set masks
+    Serial.println("Ok");
+
 
     mcpRet = canNode->begin(MCP2515_BAUDRATE);
     if (mcpRet != OK) {
@@ -142,6 +150,7 @@ err:
     /* Best effort. */
     canNode->end();
     delete canNode;
+    canNode = nullptr;
 }
 
 

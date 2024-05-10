@@ -1,8 +1,12 @@
-#include <mcp_can.h>
-#include <SPI.h>
-#include "mcp2515Driver.h"
+/**
+ * CAN MCP2515_nb
+ * Copyright 2020 WitchCraftWorks Team, All Rights Reserved
+ *
+ * Licensed under Apache 2.0
+ */
 
-#define DEBUG_MODE 0
+#include <MCP2515_nb.h>
+char str[128];
 
 #define CAN_MSG_ENGINE_DATA 0x158
 #define CAN_MSG_POWERTRAIN_DATA 0x17C
@@ -17,58 +21,68 @@
 
 #define CAN_MSG_SCM_FEEDBACK 0x326 // has r/l blinker
 
-int rpm = 0;
-int rpm2 = 0;
-int speed = 0;
-char gear = 'O';
-char msgString[128];                        // Array to store serial string
+//Todo, bad practice will move
+int rpm         = 0;
+int speedKph    = 0;
+char gear       = 'X';
 
-Mcp2515Driver *mcpDriver;
-Mcp2515DriverCanMessage canMsg = {};
-bool ret;
+MCP2515 MCP = MCP2515();
+
+int ret = 0;
 
 void setup() {
-    // delay(500); // reduces Serial issues
-    Serial.begin(115200);
-    while (!Serial)
-    {
-      ;
-    }
-    
-    Serial.print("Program started.");
+	Serial.begin(115200);
+	while (!Serial) {
+		;
+	}
 
-    mcpDriver = new Mcp2515Driver();
-    pinMode(2, INPUT);
-    ret = false;
-    canMsg = {};
+	Serial.println("CAN Receiver Callback");
+    MCP.setClockFrequency(MCP_8MHZ);
 
-    Serial.println("End setup.");
+	ret = MCP.begin(50E3);
+	// start the CAN bus at 50 kbps
+	if (ret) {
+		Serial.println("Starting CAN failed!");
+		Serial.println(ret);
+		while (true);
+	}
+    MCP.setListenMode(false);
+
+	// register the receive callback
+	MCP.onReceivePacket(onReceive);
 }
 
 void loop() {
-    // ret = false;
-    // canMsg = {};
+	// do nothing
+}
 
-    // /* Loop through tasks. */
+void onReceive(CANPacket* packet) {
+	// Serial.print("Received ");
 
-    // /* Check for messages. */
-    ret = mcpDriver->readMsg(&canMsg);
+	// // Serial.print(packet->getId(), HEX);
+    // // Serial.print(" ");
 
-    switch (canMsg.rxId)
+    // for (int i = 0; i < packet->getDlc(); i++) {
+	// 		Serial.print(packet->getData()[i]);
+    // }
+
+    // Serial.println();
+
+    switch (packet->getId())
     {
     case CAN_MSG_ENGINE_DATA:
-      speed = (canMsg.data[0] << 8) + canMsg.data[1];   // XMISSION_SPEED
-      rpm = (canMsg.data[2] << 8) + canMsg.data[3];     // ENGINE_RPM
+       speedKph = (packet->getData()[0] << 8) + packet->getData()[1];   // XMISSION_SPEED
+    //   rpm = (packet->getData()[2] << 8) + packet->getData()[3];     // ENGINE_RPM
       
       break;
 
     case CAN_MSG_POWERTRAIN_DATA:
-      rpm2 = (canMsg.data[2] << 8) + canMsg.data[3];    // ENGINE_RPM
+      rpm = (packet->getData()[2] << 8) + packet->getData()[3];    // ENGINE_RPM
       
       break;
 
     case CAN_MSG_GEARBOX:
-      gear = canMsg.data[0];
+      gear = packet->getData()[0];
       gear = gear & 0b00111111;             // GEAR_SHIFTER
       switch (gear)
       {
@@ -103,22 +117,10 @@ void loop() {
       break;
     
     default:
-      break;
+      return;
     }
+    sprintf(str, "Gear: %c,\t RPM2: %d,\t Speed %d", gear, rpm, speedKph);
 
-
-    sprintf(msgString, "Gear: %c,\t RPM2: %d,\t Speed %d,\t %d,\t %d,\t %d", gear, rpm2, speed);
-
-    Serial.print(msgString);
+    Serial.print(str);
     Serial.println();
-  
-    // if (ret == false) {
-    //   delay(500);
-    //   Serial.println("F");
-    //   return;
-    // }
-
-    // /* Report the message through serial. */
-    // mcpManager.printMsg(canMsg);
-
 }
