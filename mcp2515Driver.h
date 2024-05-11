@@ -22,15 +22,15 @@
 class Mcp2515Driver {
 public:    
     Mcp2515Driver(CarData *data);
-    ~Mcp2515Driver();
+    // ~Mcp2515Driver();
 
 
     Errors readMsg();
     // Errors printMsg(Mcp2515DriverCanMessage msg);
 
 
-private:
-    MCP2515 *canNode = nullptr;
+// private:
+    MCP2515 canNode = MCP2515(10);
     CarData *data;
 };
 

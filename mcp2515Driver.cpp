@@ -43,16 +43,11 @@ Mcp2515Driver::Mcp2515Driver(CarData *data) {
     this->data = data;
 
     /* Create canNode object. */
-    if (canNode != nullptr) {
-      Serial.print("Error: canNode already exists!");
-      goto err;
-    }
-    canNode = new MCP2515(MCP2515_CS);
-
+    canNode.reset();
     /* Initialize MCP2515 with parameters. */
-    mcpRet = canNode->setBitrate(MCP2515_BAUDRATE, MCP2515_CLOCK_HZ);
+    mcpRet = canNode.setBitrate(MCP2515_BAUDRATE, MCP2515_CLOCK_HZ);
     if (mcpRet != MCP2515::ERROR_OK) {
-      Serial.print("Error: ");
+      Serial.print("Error setBitrate: ");
       Serial.println(mcpRet);
 
       goto err;
@@ -61,9 +56,9 @@ Mcp2515Driver::Mcp2515Driver(CarData *data) {
     //todo possibly set masks
 
     /* Set listen mode. */
-    mcpRet = canNode->setListenOnlyMode();
+    mcpRet = canNode.setListenOnlyMode();
     if (mcpRet != MCP2515::ERROR_OK) {
-      Serial.print("Error: ");
+      Serial.print("Error SetListenOnlyMode: ");
       Serial.println(mcpRet);
 
       goto err;
@@ -71,11 +66,12 @@ Mcp2515Driver::Mcp2515Driver(CarData *data) {
 
     Serial.println("MCP Setup Complete.");
 
+    return;
+
 err:
     /* Best effort. */
-    canNode->reset();
-    canNode->setSleepMode();
-    delete canNode;
+    canNode.reset();
+    canNode.setSleepMode();
 }
 
 
@@ -88,16 +84,19 @@ Errors Mcp2515Driver::readMsg() {
     struct can_frame canMsg;
 
     /* Clear the CAN message container. */
-    canMsg = {};
+    // canMsg = {};
 
     /* Check for messages. */
-    mcpRet = canNode->readMessage(&canMsg);
+    mcpRet = canNode.readMessage(&canMsg);
     if(mcpRet == MCP2515::ERROR_NOMSG) {
         /* If no message, do nothing. */
+        Serial.println("No msgs.");
         return ERROR_OK;
     }
     else if (mcpRet != MCP2515::ERROR_OK) {
         /* If not successful, error out. */
+        Serial.println("ReadFail.");
+
         return ERROR_FAIL;
     }
     

@@ -14,11 +14,9 @@ void setup() {
     while (!Serial) {
       ;
     }
-    
     Serial.println("Program started.");
 
     mcpDriver = new Mcp2515Driver(&data);
-    ret = false;
 
     Serial.println("End setup.");
 }
