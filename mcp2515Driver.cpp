@@ -29,33 +29,97 @@ int rpm         = 0;
 int speedKph    = 0;
 char gear       = 'X';
 
-void Isr_readMsg(CANPacket* packet) {
-    Serial.print("Recieved 0x");
+/*!
+ * @brief Default Constructor.
+ */
+Mcp2515Driver::Mcp2515Driver(CarData *data) {
+    int mcpRet = MCP2515::ERROR_OK;
 
-	Serial.print(packet->getId(), HEX);
-    Serial.print(" ");
+    /* Validate CarData struct. */
+    if (data == nullptr) {
+        Serial.print("Error: Bad CarData pointer!");
+        return;
+    }
+    this->data = data;
 
-    for (int i = 0; i < packet->getDlc(); i++) {
-			Serial.print(packet->getData()[i]);
+    /* Create canNode object. */
+    if (canNode != nullptr) {
+      Serial.print("Error: canNode already exists!");
+      goto err;
+    }
+    canNode = new MCP2515(MCP2515_CS);
+
+    /* Initialize MCP2515 with parameters. */
+    mcpRet = canNode->setBitrate(MCP2515_BAUDRATE, MCP2515_CLOCK_HZ);
+    if (mcpRet != MCP2515::ERROR_OK) {
+      Serial.print("Error: ");
+      Serial.println(mcpRet);
+
+      goto err;
     }
 
-    Serial.println();
+    //todo possibly set masks
 
-    switch (packet->getId())
+    /* Set listen mode. */
+    mcpRet = canNode->setListenOnlyMode();
+    if (mcpRet != MCP2515::ERROR_OK) {
+      Serial.print("Error: ");
+      Serial.println(mcpRet);
+
+      goto err;
+    }
+
+    Serial.println("MCP Setup Complete.");
+
+err:
+    /* Best effort. */
+    canNode->reset();
+    canNode->setSleepMode();
+    delete canNode;
+}
+
+
+/*!
+ * @brief Handles message checking.
+ */
+Errors Mcp2515Driver::readMsg() {
+    Errors driverRet = ERROR_FAIL;
+    int mcpRet = MCP2515::ERROR_OK;
+    struct can_frame canMsg;
+
+    /* Clear the CAN message container. */
+    canMsg = {};
+
+    /* Check for messages. */
+    mcpRet = canNode->readMessage(&canMsg);
+    if(mcpRet == MCP2515::ERROR_NOMSG) {
+        /* If no message, do nothing. */
+        return ERROR_OK;
+    }
+    else if (mcpRet != MCP2515::ERROR_OK) {
+        /* If not successful, error out. */
+        return ERROR_FAIL;
+    }
+    
+    /* Filter based on our message ID. */
+    switch (canMsg.can_id)
     {
     case CAN_MSG_ENGINE_DATA:
-       speedKph = (packet->getData()[0] << 8) + packet->getData()[1];   // XMISSION_SPEED
-    //   rpm = (packet->getData()[2] << 8) + packet->getData()[3];     // ENGINE_RPM
-      
+      speedKph = (canMsg.data[0] << 8) + canMsg.data[1];   // XMISSION_SPEED
+      data->speedKph = speedKph;
       break;
 
     case CAN_MSG_POWERTRAIN_DATA:
-      rpm = (packet->getData()[2] << 8) + packet->getData()[3];    // ENGINE_RPM
-      
+      rpm = (canMsg.data[2] << 8) + canMsg.data[3];    // ENGINE_RPM
+      data->rpm = rpm;
+      break;
+    
+    case CAN_MSG_SCM_FEEDBACK:
+      //todo R/L Blinker
       break;
 
     case CAN_MSG_GEARBOX:
-      gear = packet->getData()[0];
+      gear = canMsg.data[0];
       gear = gear & 0b00111111;             // GEAR_SHIFTER
       switch (gear)
       {
@@ -86,92 +150,23 @@ void Isr_readMsg(CANPacket* packet) {
       default:
         break;
       }
+      data->gear = gear;
 
       break;
     
     default:
       break;
     }
+
+
     sprintf(str, "Gear: %c,\t RPM2: %d,\t Speed %d,\t %d,\t %d,\t %d", gear, rpm, speedKph);
 
     Serial.print(str);
     Serial.println();
+
+    /* If message read successfully. */
+    return ERROR_OK;  
 }
-
-/*!
- * @brief Default Constructor.
- */
-Mcp2515Driver::Mcp2515Driver(CarData *data) {
-    Errors driverRet = ERROR_FAIL;
-    int mcpRet = OK;
-
-    /* Validate CarData struct. */
-    if (data == NULL) {
-        Serial.print("Error: Bad CarData pointer!");
-        return;
-    }
-    this->data = data;
-
-    /* Create canNode object. */
-    if (canNode != NULL) {
-        Serial.print("Error: canNode already exists!");
-        goto err;
-    }
-    canNode = new MCP2515();
-
-    /* Initialize MCP2515 with parameters. */
-    canNode->setClockFrequency(MCP2515_CLOCK_HZ);
-    canNode->setPins(MCP2515_CS, MCP2515_INT);
-    //todo possibly set masks
-
-    mcpRet = canNode->begin(MCP2515_BAUDRATE);
-    if (mcpRet != OK) {
-      Serial.print("Error: ");
-      Serial.println(mcpRet);
-
-      goto err;
-    }
-
-    /* Set listen mode, and do not allow invalid packets. */
-    canNode->setListenMode(false);
-
-    /* Register the message receive callback. */
-    canNode->onReceivePacket(Isr_readMsg);
-
-err:
-    /* Best effort. */
-    canNode->end();
-    delete canNode;
-}
-
-
-// /*!
-//  * @brief Handles message checking.
-//  */
-// Errors Mcp2515Driver::readMsg(Mcp2515DriverCanMessage *canMsg) {
-//     Errors driverRet = ERROR_FAIL;
-//     INT8U mcpRet = CAN_FAIL;
-
-//     /* Clear the CAN message container. */
-//     canMsg = {};
-
-//     if(digitalRead(MCP2515_INT) != LOW) {
-//         /* If interrupt pin wasn't triggered, do nothing. */
-//         return ERROR_OK;
-//     }
-
-//     /* Read a message. */
-//     mcpRet = canNode->readMsgBuf(&canMsg->rxId, &canMsg->len, canMsg->data);
-    
-//     sprintf(str, "RxID %d Len %d, Buf %d", canMsg->rxId, canMsg->len, canMsg->data[0]);
-//     Serial.print(str); //todo temp
-//     if (mcpRet != CAN_OK) {
-//         return ERROR_FAIL;
-//     }
-
-//     /* If message read successfully. */
-//     return ERROR_OK;  
-// }
 
 // /*!
 //  * @brief Print message.

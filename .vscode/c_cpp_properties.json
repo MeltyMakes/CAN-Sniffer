@@ -18,8 +18,7 @@
             "includePath": [
                 "C:\\Users\\Melty\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.2\\cores\\arduino",
                 "C:\\Users\\Melty\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.2\\variants\\standard",
-                "C:\\Users\\Melty\\Documents\\Arduino\\libraries\\MCP2515-nb\\src",
-                "C:\\Users\\Melty\\Documents\\Arduino\\libraries\\avr_stl\\src",
+                "C:\\Users\\Melty\\Documents\\Arduino\\libraries\\autowp-mcp2515",
                 "C:\\Users\\Melty\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\avr\\1.8.2\\libraries\\SPI\\src",
                 "c:\\users\\melty\\appdata\\local\\arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino5\\lib\\gcc\\avr\\7.3.0\\include",
                 "c:\\users\\melty\\appdata\\local\\arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino5\\lib\\gcc\\avr\\7.3.0\\include-fixed",

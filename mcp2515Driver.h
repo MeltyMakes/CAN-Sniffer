@@ -10,7 +10,7 @@
 #ifndef MCP2515_DRIVER_H
 #define MCP2515_DRIVER_H
 
-#include <MCP2515_nb.h>
+#include <mcp2515.h>
 #include "carData.h"
 #include "errors.h"
 
@@ -25,12 +25,12 @@ public:
     ~Mcp2515Driver();
 
 
-    // Errors readMsg(Mcp2515DriverCanMessage *msg);
+    Errors readMsg();
     // Errors printMsg(Mcp2515DriverCanMessage msg);
 
 
 private:
-    MCP2515 *canNode;
+    MCP2515 *canNode = nullptr;
     CarData *data;
 };
 
