@@ -7,7 +7,6 @@
 #define MCP2515_CLOCK_HZ    MCP_8MHZ        /* Run Chip at 8MHz as the onboard source is 8MHz. */
 #define MCP2515_MASK        MCP_STDEXT      /* Mask for Standard and Extended IDs. */
 #define MCP2515_MODE        MCP_LISTENONLY  /* Listen on the bus, do not transmit any messages or ACK. */
-#define MCP2515_CS          10              /* Chip Select connected to the MCP2515 chip. */
 #define MCP2515_INT         2               /* Interrupt pin connected to the MCP2515 chip. */
 char str[128];
 
@@ -24,10 +23,6 @@ char str[128];
 
 #define CAN_MSG_SCM_FEEDBACK 0x326 // has r/l blinker
 
-//Todo, bad practice will move
-int rpm         = 0;
-int speedKph    = 0;
-char gear       = 'X';
 
 /*!
  * @brief Default Constructor.
@@ -40,12 +35,13 @@ Mcp2515Driver::Mcp2515Driver(CarData *data) {
         Serial.print("Error: Bad CarData pointer!");
         return;
     }
-    this->data = data;
+    this->data_ = data;
 
-    /* Create canNode object. */
-    canNode.reset();
-    /* Initialize MCP2515 with parameters. */
-    mcpRet = canNode.setBitrate(MCP2515_BAUDRATE, MCP2515_CLOCK_HZ);
+    /* Autowp library requires MCP to be reset before changing parameters. */
+    canNode_.reset();
+    
+    /* Set MCP2515 parameters. */
+    mcpRet = canNode_.setBitrate(MCP2515_BAUDRATE, MCP2515_CLOCK_HZ);
     if (mcpRet != MCP2515::ERROR_OK) {
       Serial.print("Error setBitrate: ");
       Serial.println(mcpRet);
@@ -53,10 +49,10 @@ Mcp2515Driver::Mcp2515Driver(CarData *data) {
       goto err;
     }
 
-    //todo possibly set masks
+    //todo possibly set mask and filter registers in MCP
 
     /* Set listen mode. */
-    mcpRet = canNode.setListenOnlyMode();
+    mcpRet = canNode_.setListenOnlyMode();
     if (mcpRet != MCP2515::ERROR_OK) {
       Serial.print("Error SetListenOnlyMode: ");
       Serial.println(mcpRet);
@@ -70,8 +66,8 @@ Mcp2515Driver::Mcp2515Driver(CarData *data) {
 
 err:
     /* Best effort. */
-    canNode.reset();
-    canNode.setSleepMode();
+    canNode_.reset();
+    canNode_.setSleepMode();
 }
 
 
@@ -84,13 +80,13 @@ Errors Mcp2515Driver::readMsg() {
     struct can_frame canMsg;
 
     /* Clear the CAN message container. */
-    // canMsg = {};
+    canMsg = {};
 
     /* Check for messages. */
-    mcpRet = canNode.readMessage(&canMsg);
+    mcpRet = canNode_.readMessage(&canMsg);
     if(mcpRet == MCP2515::ERROR_NOMSG) {
         /* If no message, do nothing. */
-        Serial.println("No msgs.");
+        // Serial.println("No msgs."); //todo implement a better debug message verbosity system.
         return ERROR_OK;
     }
     else if (mcpRet != MCP2515::ERROR_OK) {
@@ -101,85 +97,82 @@ Errors Mcp2515Driver::readMsg() {
     }
     
     /* Filter based on our message ID. */
-    switch (canMsg.can_id)
+    driverRet = processMsg(canMsg.can_id, canMsg.data);
+    if (driverRet != ERROR_OK) {
+      Serial.print("Error processMsg: ");
+      Serial.println(mcpRet);
+
+      return ERROR_FAIL;
+    }
+
+    /* If message read successfully. */
+    return ERROR_OK;
+}
+
+Errors Mcp2515Driver::processMsg(canid_t msgId, unsigned char *msgData){
+    Errors driverRet = ERROR_OK;
+
+    /* Handle data based on ID. */
+    switch (msgId)
     {
-    case CAN_MSG_ENGINE_DATA:
-      speedKph = (canMsg.data[0] << 8) + canMsg.data[1];   // XMISSION_SPEED
-      data->speedKph = speedKph;
-      break;
+      case CAN_MSG_ENGINE_DATA:
+          data_->speedKph = (msgData[0] << 8) + msgData[1];   // XMISSION_SPEED
+          break;
 
-    case CAN_MSG_POWERTRAIN_DATA:
-      rpm = (canMsg.data[2] << 8) + canMsg.data[3];    // ENGINE_RPM
-      data->rpm = rpm;
-      break;
-    
-    case CAN_MSG_SCM_FEEDBACK:
-      //todo R/L Blinker
-      break;
-
-    case CAN_MSG_GEARBOX:
-      gear = canMsg.data[0];
-      gear = gear & 0b00111111;             // GEAR_SHIFTER
-      switch (gear)
-      {
-      case 0x20:
-        gear = 'L';                         // Low Gear
-        break;
+      case CAN_MSG_POWERTRAIN_DATA:
+          data_->rpm = (msgData[2] << 8) + msgData[3];    // ENGINE_RPM
+          break;
       
-      case 0x10:
-        gear = 'S';                         // Sport
-        break;
+      case CAN_MSG_SCM_FEEDBACK:
+          //todo R/L Blinker
+          break;
 
-      case 0x8:
-        gear = 'D';                         // Drive
-        break;
+      case CAN_MSG_GEARBOX:
+          char gear = 'X';
+          gear = msgData[0];
+          gear = gear & 0b00111111;             // GEAR_SHIFTER
+          switch (gear)
+          {
+          case 0x20:
+            gear = 'L';                         // Low Gear
+            break;
 
-      case 0x4:
-        gear = 'N';                         // Neutral
-        break;
+          case 0x10:
+            gear = 'S';                         // Sport
+            break;
 
-      case 0x2:
-        gear = 'R';                         // Reverse
-        break;
+          case 0x8:
+            gear = 'D';                         // Drive
+            break;
 
-      case 0x1:
-        gear = 'P';                         // Park
-        break;
-      
+          case 0x4:
+            gear = 'N';                         // Neutral
+            break;
+
+          case 0x2:
+            gear = 'R';                         // Reverse
+            break;
+
+          case 0x1:
+            gear = 'P';                         // Park
+            break;
+
+          default:
+            break;
+          }
+          data_->gear = gear;
+          break;
+
       default:
-        break;
-      }
-      data->gear = gear;
-
-      break;
-    
-    default:
-      break;
+        /* No need to do anything on bad data. */
+        return ERROR_OK;
     }
 
 
-    sprintf(str, "Gear: %c,\t RPM2: %d,\t Speed %d,\t %d,\t %d,\t %d", gear, rpm, speedKph);
+    sprintf(str, "Gear: %c,\t RPM2: %d,\t Speed %d", data_->gear, data_->rpm, data_->speedKph);
 
     Serial.print(str);
     Serial.println();
 
-    /* If message read successfully. */
-    return ERROR_OK;  
+    return ERROR_OK;
 }
-
-// /*!
-//  * @brief Print message.
-//  */
-// Errors Mcp2515Driver::printMsg(Mcp2515DriverCanMessage canMsg) {
-//     Serial.print(canMsg.can_id, HEX);
-//     Serial.print(","); 
-//     Serial.print(canMsg.can_dlc, HEX);
-//     Serial.print(",");
-    
-//     for (int i = 0; i<canMsg.can_dlc; i++)  {
-//       Serial.print(packet->getData()[i],HEX);
-//       Serial.print(",");
-//     }
-
-//     Serial.println();
-// }

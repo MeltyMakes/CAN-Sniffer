@@ -14,24 +14,24 @@
 #include "carData.h"
 #include "errors.h"
 
-#define CS_PIN 10;
-
+#define MCP2515_CS          10              /* Chip Select connected to the MCP2515 chip. */
 
 
 /* //todo doxygen */
 class Mcp2515Driver {
 public:    
     Mcp2515Driver(CarData *data);
-    // ~Mcp2515Driver();
+    // ~Mcp2515Driver(); //todo implement
 
 
     Errors readMsg();
-    // Errors printMsg(Mcp2515DriverCanMessage msg);
+
+private:
+    MCP2515 canNode_ = MCP2515(MCP2515_CS);
+    CarData *data_;
 
 
-// private:
-    MCP2515 canNode = MCP2515(10);
-    CarData *data;
+    Errors processMsg(canid_t msgId, unsigned char *msgData);
 };
 
 
