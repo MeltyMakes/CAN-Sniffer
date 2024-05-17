@@ -10,7 +10,7 @@
 #ifndef MCP2515_DRIVER_H
 #define MCP2515_DRIVER_H
 
-#include <mcp2515.h>
+#include <mcp2515.h>                        /* Depends on autowp-mcp2515 library: https://github.com/autowp/arduino-mcp2515 */
 #include "carData.h"
 #include "errors.h"
 
@@ -24,11 +24,11 @@ public:
     // ~Mcp2515Driver(); //todo implement
 
 
-    Errors readMsg();
+    Errors loopReadMsgs();
 
 private:
-    MCP2515 canNode_ = MCP2515(MCP2515_CS);
-    CarData *data_;
+    MCP2515 _canNode = MCP2515(MCP2515_CS);
+    CarData *_data;
 
 
     Errors processMsg(canid_t msgId, unsigned char *msgData);
