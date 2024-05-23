@@ -1,6 +1,6 @@
 /*!
  * @file    mcp2515Driver.h 
- * @author  meltyMakes
+ * @author  meltyHandsCo
  * @date    December, 2023
  * 
  * @brief   Driver to process outputs from an MCP2515 Shield.
@@ -19,19 +19,33 @@
 
 /* //todo doxygen */
 class Mcp2515Driver {
-public:    
+public:
+    /*!
+     * @brief Default Constructor.
+     */
     Mcp2515Driver(CarData *data);
-    // ~Mcp2515Driver(); //todo implement
 
-
+    /*!
+     * @brief Checks for CAN messages and stores the result if any was received. Call every loop().
+     * 
+     * @result Any relevant CAN data should be stored in the _data member of the class.
+     */
     Errors loopReadMsgs();
 
 private:
     MCP2515 _canNode = MCP2515(MCP2515_CS);
     CarData *_data;
 
-
-    Errors processMsg(canid_t msgId, unsigned char *msgData);
+    /*! 
+    * @brief   Takes a given CAN message's contents and stores the data based on the message ID.
+    * 
+    * @param[in]    msgId       ID of the message corresponding to the data.
+    * @param[in]    msgData     Pointer to a buffer containing the data from the message.
+    * 
+    * @result  Will set/update appropriate flags/variables for the message ID.
+    *          On fail will just return without updating anything.
+    */
+    void processMsg(canid_t msgId, uint8_t *msgData);
 };
 
 

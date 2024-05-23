@@ -1,4 +1,11 @@
-//todo doxygen
+/*!
+ * @file    serialDriver.cpp
+ * @author  meltyHandsCo
+ * @date    May, 2023
+ * 
+ * @brief   Driver to handle sending and receiving serial data.
+ * 
+ */
 
 #include "serialDriver.h"
 
@@ -37,42 +44,62 @@ const SdRxFnEntry rxFunctionLookupTable[SERIAL_DRIVER_ID_MAX] = {
 SerialDriver::SerialDriver(Stream *serialPort) {
     /* Validate serialPort object. */
     if (serialPort == nullptr) {
-        _serialP->print("Error: Bad Serial pointer!");
+        Serial.println("Error: Bad Serial pointer!");
         while (1);
     }
-
-    _serialP = serialPort;
 
     /* Initialize PacketSerial. */
     _packetSerial.setStream(serialPort);
     _packetSerial.setPacketHandler(&onPacketReceived);
 }
 
-//todo doxygen
+
+/*!
+ * @brief Checks for Serial messages and triggers the onPacketReceived callback. Call every loop().
+ * 
+ * @result onPacketReceived called.
+ */
 Errors SerialDriver::loopReadMsgs() {
     _packetSerial.update();
     
     if (_packetSerial.overflow()) {
         //todo handle
-        _serialP->println("WARNING: Serial buffer overflowed!");
+        Serial.println("WARNING: Serial buffer overflowed!");
     }
 }
 
+
+/*!
+ * @brief   Sends a serial message.
+ *
+ *          Message is sent in the following format:
+ *          +------+------------------+
+ *          |  ID  |  Payload Byte N  |
+ *          +------+------------------+
+ *          There must be at least one payload byte.
+ * 
+ * @param[in]   id        Identifier for the message to be sent.
+ * @param[in]   payload   Byte array containing the data to be sent.
+ * @param[in]   size      Length of the payload.
+ * 
+ * @return  ERROR_FAIL  Returned if the inputs were invalid.
+ * @return  ERROR_OK    Returned if the message was sent.
+ */
 Errors SerialDriver::sendMessage(uint8_t id, const uint8_t* payload, size_t size) {
     const uint8_t* message = nullptr;
     size_t msgSize = 0;
 
     /* Validate inputs. */
     if (payload == nullptr) {
-        return;
+        return ERROR_FAIL;
     }
     /* Every message should include an ID and a payload of at least 1 byte. */
     if (size < 1) {
-        return;
+        return ERROR_FAIL;
     }
     /* Check if the ID byte is valid. */
     if (id >= SERIAL_DRIVER_ID_MAX) {
-        return;
+        return ERROR_FAIL;
     }
 
     /* Prepend the ID to our payload data by storing in a message buffer. */
@@ -83,11 +110,25 @@ Errors SerialDriver::sendMessage(uint8_t id, const uint8_t* payload, size_t size
 
     /* Send the message. */
     _packetSerial.send(message, msgSize);
+    
+    return ERROR_OK;
 }
 
 
-
-//todo doxygen
+/*!
+ * @brief   Callback triggered on message received.
+ *
+ *          Message expected to be sent in the following format:
+ *          +------+------------------+
+ *          |  ID  |  Payload Byte N  |
+ *          +------+------------------+
+ *          There must be at least one payload byte.
+ * 
+ * @param[in]   buffer    Byte array containing the data received.
+ * @param[in]   size      Length of the buffer received.
+ * 
+ * @result  If received message was valid, calls a function from rxFunctionLookupTable based on the message ID.
+ */
 void onPacketReceived(const uint8_t* buffer, size_t size) {
     SdFnIds id = SERIAL_DRIVER_ID_MAX;
     const uint8_t* payload = nullptr;
@@ -132,8 +173,8 @@ void onPacketReceived(const uint8_t* buffer, size_t size) {
 /*!
  * @brief Does nothing. Used for any actions that aren't implemented.
  *
- * @param payload   Data payload from the packet.
- * @param size      Length of the payload array.
+ * @param[in]   payload   Data payload from the packet.
+ * @param[in]   size      Length of the payload array.
  * 
  * @result  Does nothing.
  */
