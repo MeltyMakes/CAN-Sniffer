@@ -1,5 +1,0 @@
-{
-    "board": "arduino:avr:uno",
-    "sketch": "CAN Sniffer.ino",
-    "port": "COM3"
-}
