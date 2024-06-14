@@ -29,9 +29,10 @@ void loop() {
     mcpDriver->loopReadMsgs();
     serialDriver->loopReadMsgs();
 
-    /* Report the message through serial. */
-    //todo implement
+    /* Read sensor data. */
+    // In the future, the sniffer will be extendable with other sensors. Data will be read here.
 
-
+    /* Report data through serial. */
+    serialDriver->txSendEngineData(data.rpm, data.speedKph, data.gear);
 
 }

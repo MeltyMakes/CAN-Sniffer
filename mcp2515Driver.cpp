@@ -89,7 +89,6 @@ Errors Mcp2515Driver::loopReadMsgs() {
     mcpRet = _canNode.readMessage(&canMsg);
     if(mcpRet == MCP2515::ERROR_NOMSG) {
         /* If no message, do nothing. */
-        // Serial.println("No msgs."); //todo implement a better debug message verbosity system.
         return ERROR_OK;
     }
     else if (mcpRet != MCP2515::ERROR_OK) {

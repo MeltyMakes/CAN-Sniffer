@@ -28,6 +28,26 @@ public:
     Errors loopReadMsgs();
 
     /*!
+    * @brief   Sends RPM, Speed, and Gear data over serial.
+    *          
+    *          Data is sent in the following format:
+    *          +-----------+-----------+---------+--------+
+    *          |  RPM msb  |  RPM lsb  |  Speed  |  Gear  |
+    *          +-----------+-----------+---------+--------+
+    * 
+    * @param[in]   rpm        Engine RPM.
+    * @param[in]   speedKph   Vehicle speed in kilometers per hour.
+    * @param[in]   gear       Engine gear.
+    * 
+    * @return  ERROR_FAIL  Returned if the message was not sent.
+    * @return  ERROR_OK    Returned if the message was sent.
+    */
+    Errors txSendEngineData(int rpm, int speedKph, char gear);
+
+private:
+    PacketSerial _packetSerial;
+
+    /*!
      * @brief   Sends a serial message.
      *
      *          Message is sent in the following format:
@@ -44,8 +64,6 @@ public:
      * @return  ERROR_OK    Returned if the message was sent.
      */
     Errors sendMessage(uint8_t id, const uint8_t* payload, size_t size);
-private:
-    PacketSerial _packetSerial;
 
 };
 

@@ -9,18 +9,22 @@
 
 #include "serialDriver.h"
 
+/* Message Payload lengths. */
+#define SERIAL_DRIVER_PAYLOAD_LEN_FAULT         1   /* No data sent. */
+#define SERIAL_DRIVER_PAYLOAD_LEN_ENGINE_DATA   4   /* RPM (2 bytes), Speed, Gear. */
+
 /* Serial Driver Message IDs. */
 enum SdFnIds {
-    SERIAL_DRIVER_ID_ENGINE_DATA = 0x0,
-    SERIAL_DRIVER_ID_STATUS = 0x1,
+    SERIAL_DRIVER_ID_FAULT = 0x0,
+    SERIAL_DRIVER_ID_ENGINE_DATA = 0x1,
     SERIAL_DRIVER_ID_MAX,
 };
+
 
 /* Rx Callback. */
 void onPacketReceived(const uint8_t* buffer, size_t size);
 /* Define Rx functions. */
 void rxHandleUnimplemented(const uint8_t* payload, size_t size);
-void rxHandleEngineData(const uint8_t* payload, size_t size);
 
 /* Define structure of Rx functions. */
 typedef void SdRxFunc(const uint8_t* payload, size_t size);
@@ -33,8 +37,8 @@ typedef struct SdRxFnEntry {
 
 /* Rx Function lookup table. */
 const SdRxFnEntry rxFunctionLookupTable[SERIAL_DRIVER_ID_MAX] = {
-    {SERIAL_DRIVER_ID_ENGINE_DATA, rxHandleEngineData},
-    {SERIAL_DRIVER_ID_STATUS, rxHandleUnimplemented},
+    {SERIAL_DRIVER_ID_FAULT, rxHandleUnimplemented},        /* CAN Sniffer doesn't care if companion faults. */
+    {SERIAL_DRIVER_ID_ENGINE_DATA, rxHandleUnimplemented},  /* CAN Sniffer shouldn't be recieving engine data. */
 };
 
 
@@ -63,8 +67,8 @@ Errors SerialDriver::loopReadMsgs() {
     _packetSerial.update();
     
     if (_packetSerial.overflow()) {
-        //todo handle
-        Serial.println("WARNING: Serial buffer overflowed!");
+        /* Indicate error to companion. Best effort. */
+        txSendFault();
     }
 }
 
@@ -93,7 +97,7 @@ Errors SerialDriver::sendMessage(uint8_t id, const uint8_t* payload, size_t size
     if (payload == nullptr) {
         return ERROR_FAIL;
     }
-    /* Every message should include an ID and a payload of at least 1 byte. */
+    /* Every message should include a payload of at least 1 byte. */
     if (size < 1) {
         return ERROR_FAIL;
     }
@@ -114,6 +118,52 @@ Errors SerialDriver::sendMessage(uint8_t id, const uint8_t* payload, size_t size
     return ERROR_OK;
 }
 
+/*!
+ * @brief   Send a message indicating a fault occured.
+ *          Given the use case, results are best effort.
+ * 
+ * @result  If successful a serial message indicating a fault will be sent.
+ */
+void SerialDriver::txSendFault() {
+    /* Send a fault. */
+    ret = sendMessage(SERIAL_DRIVER_ID_FAULT, 0, SERIAL_DRIVER_PAYLOAD_LEN_FAULT);
+
+    return ret;
+}
+
+/*!
+ * @brief   Sends RPM, Speed, and Gear data over serial.
+ *          
+ *          Data is sent in the following format:
+ *          +-----------+-----------+---------+--------+
+ *          |  RPM msb  |  RPM lsb  |  Speed  |  Gear  |
+ *          +-----------+-----------+---------+--------+
+ * 
+ * @param[in]   rpm        Engine RPM.
+ * @param[in]   speedKph   Vehicle speed in kilometers per hour.
+ * @param[in]   gear       Engine gear.
+ * 
+ * @return  ERROR_FAIL  Returned if the message was not sent.
+ * @return  ERROR_OK    Returned if the message was sent.
+ */
+Errors SerialDriver::txSendEngineData(int rpm, int speedKph, char gear) {
+    Errors ret = ERROR_OK;
+    uint8_t payload[SERIAL_DRIVER_PAYLOAD_LEN_ENGINE_DATA] = {};
+
+    /* Cap input data. */
+    rpm &= 0xFFFF;      /* RPM only supports 2 bytes. */
+
+    /* Push data to payload. */
+    payload[0] = (rpm >> 8) & 0xFF;
+    payload[1] = (rpm) & 0xFF;
+    payload[2] = (speedKph) & 0xFF;
+    payload[3] = (uint8_t)gear;
+
+    /* Send the data. */
+    ret = sendMessage(SERIAL_DRIVER_ID_ENGINE_DATA, payload, SERIAL_DRIVER_PAYLOAD_LEN_ENGINE_DATA);
+
+    return ret;
+}
 
 /*!
  * @brief   Callback triggered on message received.
@@ -166,6 +216,7 @@ void onPacketReceived(const uint8_t* buffer, size_t size) {
 }
 
 
+
 /* 
  * Serial Driver Rx Functions
  */
@@ -179,9 +230,5 @@ void onPacketReceived(const uint8_t* buffer, size_t size) {
  * @result  Does nothing.
  */
 void rxHandleUnimplemented(const uint8_t* payload, size_t size) {
-    return;
-}
-
-void rxHandleEngineData(const uint8_t* payload, size_t size) {
     return;
 }
