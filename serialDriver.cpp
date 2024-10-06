@@ -1,6 +1,6 @@
 /*!
  * @file    serialDriver.cpp
- * @author  meltyHandsCo
+ * @author  meltyMakesCo
  * @date    May, 2023
  * 
  * @brief   Driver to handle sending and receiving serial data.
@@ -124,7 +124,8 @@ Errors SerialDriver::sendMessage(uint8_t id, const uint8_t* payload, size_t size
  * 
  * @result  If successful a serial message indicating a fault will be sent.
  */
-void SerialDriver::txSendFault() {
+Errors SerialDriver::txSendFault() {
+    Errors ret;
     /* Send a fault. */
     ret = sendMessage(SERIAL_DRIVER_ID_FAULT, 0, SERIAL_DRIVER_PAYLOAD_LEN_FAULT);
 

@@ -1,6 +1,6 @@
 /*!
  * @file    mcp2515Driver.cpp
- * @author  meltyHandsCo
+ * @author  meltyMakesCo
  * @date    December, 2023
  * 
  * @brief   Driver to process outputs from an MCP2515 Shield.

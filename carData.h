@@ -1,6 +1,6 @@
 /*!
  * @file    carData.h 
- * @author  meltyHandsCo
+ * @author  meltyMakesCo
  * @date    December, 2023
  * 
  * @brief   Struct for holding data from the car.

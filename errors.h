@@ -1,6 +1,6 @@
 /*!
  * @file    mcp2515Driver.h 
- * @author  meltyHandsCo
+ * @author  meltyMakesCo
  * @date    April, 2024
  * 
  * @brief   Common struct for function return types.

@@ -1,6 +1,6 @@
 /*!
  * @file    serialDriver.h 
- * @author  meltyHandsCo
+ * @author  meltyMakesCo
  * @date    May, 2023
  * 
  * @brief   Driver to handle sending and receiving serial data.
@@ -64,6 +64,8 @@ private:
      * @return  ERROR_OK    Returned if the message was sent.
      */
     Errors sendMessage(uint8_t id, const uint8_t* payload, size_t size);
+
+    Errors txSendFault();
 
 };
 
